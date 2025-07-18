@@ -159,28 +159,6 @@ def compute_correlation(p_samples, r_samples):
     return corr
 
 
-def simulate_test_drift(X_test, y_test, drift_levels):
-    drifted_sets = []
-    for drift_ratio in drift_levels:
-        minority_indices = np.where(y_test == 1)[0]
-        majority_indices = np.where(y_test == 0)[0]
-        n_minority = int(len(y_test) * drift_ratio)
-        n_majority = len(y_test) - n_minority
-
-        if n_minority > len(minority_indices) or n_majority > len(majority_indices):
-            continue  # Skip if not enough samples to simulate drift
-
-        sampled_minority = np.random.choice(minority_indices, n_minority, replace=False)
-        sampled_majority = np.random.choice(majority_indices, n_majority, replace=False)
-        combined_indices = np.concatenate([sampled_minority, sampled_majority])
-        np.random.shuffle(combined_indices)
-
-        X_drifted = X_test[combined_indices]
-        y_drifted = y_test[combined_indices]
-        drifted_sets.append((drift_ratio, X_drifted, y_drifted))
-    return drifted_sets
-
-
 def prior_lists():
     # === Beta Prior Grid (Label, α, β) ===
     beta_prior_values = [0.1, 0.5, 1, 2, 5, 10, 50]
@@ -292,22 +270,6 @@ def save_results(dataset, trial, num_bootstrap_samples, weights, n_samples, n_fe
     df.to_csv('result4-24.csv', mode='a', header=not os.path.exists('result4-24.csv'), index=False)
 
 
-def save_results_drift(dataset, trial, num_bootstrap_samples, weights,drift_ratio, n_samples, n_features, n_informative,
-                                 corr_beta, corr_dirichlet,
-                                 f1_point_estimate, fbeta_point_estimate, f1_bootstrap_mean, f1_bootstrap_ci,
-                                 f1_dir_posterior_mean, f1_dir_posterior_ci, f1_beta_posterior_mean, f1_beta_posterior_ci):
-    df = pd.DataFrame([{
-        "dataset": dataset, "trial": trial, "num_bootstrap_samples": num_bootstrap_samples,
-        "weights": weights, "drift_ratio": drift_ratio, "n_samples": n_samples, "n_features": n_features, "n_informative": n_informative,
-        "corr_beta": corr_beta, "corr_dirichlet": corr_dirichlet,
-        "f1_point_estimate": f1_point_estimate, "fbeta_point_estimate": fbeta_point_estimate,
-        "f1_bootstrap_mean": f1_bootstrap_mean, "f1_bootstrap_ci": f1_bootstrap_ci,
-        "f1_dir_posterior_mean": f1_dir_posterior_mean, "f1_dir_posterior_ci": f1_dir_posterior_ci,
-        "f1_beta_posterior_mean": f1_beta_posterior_mean, "f1_beta_posterior_ci": f1_beta_posterior_ci
-    }])
-    df.to_csv('result4-24.csv', mode='a', header=not os.path.exists('result4-24.csv'), index=False)
-
-
 if __name__ == '__main__':
     num_bootstrap_samples = 50000
 
@@ -321,9 +283,6 @@ if __name__ == '__main__':
     n_features_list = [20]
 
     plot = True
-
-    test_drift = False
-    drift_levels = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
 
     prior_sensitivity = False
 
@@ -383,47 +342,6 @@ if __name__ == '__main__':
                         df_beta.to_csv("beta_prior_sensitivity.csv", index=False)
                         df_dirichlet.to_csv("dirichlet_prior_sensitivity.csv", index=False)
 
-                    elif test_drift:
-                        drifted_test_sets = simulate_test_drift(X_test, y_test, drift_levels)
-
-                        for drift_ratio, X_drifted, y_drifted in drifted_test_sets:
-                            y_pred_drifted = model.predict(X_drifted)
-                            tn, fp, fn, tp = confusion_matrix(y_drifted, y_pred_drifted).ravel()
-
-                            f1_point_estimate, fbeta_point_estimate = compute_point_estimates(y_test, y_pred_drifted)
-
-                            # Bootstrap
-                            f1_bootstrap_samples = compute_bootstrap_f1(model, X_drifted, y_drifted,
-                                                                        num_bootstrap_samples)
-                            f1_bootstrap_mean, f1_bootstrap_ci = compute_mean_ci(f1_bootstrap_samples)
-
-                            # Dirichlet
-                            counts = np.array([tp, fp, fn, tn])
-                            precision_dir, recall_dir, f1_dir_posterior_samples = compute_dirichlet_multinomial_f1(
-                                counts, num_bootstrap_samples, alpha)
-                            f1_dir_posterior_mean, f1_dir_posterior_ci = compute_mean_ci(f1_dir_posterior_samples)
-
-                            # Beta
-                            p_samples, r_samples, f1_posterior_samples = compute_beta_multinomial_f1(counts,
-                                                                                                     num_bootstrap_samples)
-                            f1_beta_posterior_mean, f1_beta_posterior_ci = compute_mean_ci(f1_posterior_samples)
-
-                            # Correlation
-                            corr_beta = compute_correlation(p_samples, r_samples)
-                            corr_dirichlet = compute_correlation(precision_dir, recall_dir)
-
-                            # Save result with drift info
-                            save_results_drift(dataset=f"{dataset}_drift_{drift_ratio}", trial=trial,
-                                         num_bootstrap_samples=num_bootstrap_samples, weights=weights,
-                                               drift_ratio=drift_ratio,
-                                         n_samples=n_samples, n_features=n_features, n_informative=n_informative,
-                                         corr_beta=corr_beta, corr_dirichlet=corr_dirichlet,
-                                         f1_point_estimate=f1_point_estimate, fbeta_point_estimate=fbeta_point_estimate,
-                                         f1_bootstrap_mean=f1_bootstrap_mean, f1_bootstrap_ci=f1_bootstrap_ci,
-                                         f1_dir_posterior_mean=f1_dir_posterior_mean,
-                                         f1_dir_posterior_ci=f1_dir_posterior_ci,
-                                         f1_beta_posterior_mean=f1_beta_posterior_mean,
-                                         f1_beta_posterior_ci=f1_beta_posterior_ci)
                     else:
                         # Compute Point estimates
                         f1_point_estimate, fbeta_point_estimate = compute_point_estimates(y_test, y_pred)
