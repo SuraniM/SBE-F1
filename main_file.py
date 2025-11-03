@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix, f1_score, make_scorer, fbeta_score
 from scipy.stats import dirichlet
 from scipy.stats import beta
@@ -69,15 +70,20 @@ def transform_data(X_train, X_test):
     return X_train, X_test
 
 
-def fit_model(X_train, y_train, X_test, y_test):
-    model = LogisticRegression()
-    model.fit(X_train, y_train)
+def fit_model(X_train, y_train, X_test, y_test, model_name):
+    if model_name == 'logit':
+        fitmodel = LogisticRegression()
+    elif model_name == "decision_tree":
+        fitmodel = DecisionTreeClassifier()
+    else:
+        fitmodel = None
+    fitmodel.fit(X_train, y_train)
 
     # Test Set Point Estimate
-    y_pred = model.predict(X_test)
+    y_pred = fitmodel.predict(X_test)
     tn, fp, fn, tp = confusion_matrix(y_test, y_pred).ravel()
 
-    return model, tn, fp, fn, tp, y_pred
+    return fitmodel, tn, fp, fn, tp, y_pred
 
 
 def compute_point_estimates(y_test, y_pred):
@@ -251,7 +257,12 @@ def plot_sensitivity_results(df, title, true_f1):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.show()
+
+    save_file = 'Sensitivity - ' + title
+    path = "C:/Users/Surani/Documents/PhD Research Work/PhD Work/PostDoc/SBE-F1/R1_HR_Figures/"
+    plt.savefig(path + save_file + ".png", format="png", dpi=600)
+
+    # plt.show()
 
 
 def save_results(dataset, trial, num_bootstrap_samples, weights, n_samples, n_features, n_informative,
@@ -275,18 +286,19 @@ if __name__ == '__main__':
 
     dataset = "synthetic"  # synthetic, ecoli, yeast_me2, oil, thyroid_sick, satimage, ecoli_small_n
     # n_samples_list = [50, 500]
-    # weights_list = [[0.9, 0.1], [0.90, 0.1], [0.5, 0.5]]
+    # weights_list = [[0.9, 0.1], [0.8, 0.2], [0.5, 0.5]]
     # n_features_list = [20, 200]
 
     n_samples_list = [50]
-    weights_list = [[0.9, 0.1]]
+    weights_list = [[0.8, 0.2]]
     n_features_list = [20]
+    model_name = 'logit'
 
     plot = True
 
     prior_sensitivity = False
 
-    for trial in range(0, 50, 1):
+    for trial in range(0, 1, 1):
         for weights in weights_list: # , 0.95, 0.05
             for n_samples in n_samples_list:
                 for n_features in n_features_list:
@@ -304,7 +316,7 @@ if __name__ == '__main__':
 
                     X_train, X_test = transform_data(X_train, X_test)
 
-                    model, tn, fp, fn, tp, y_pred = fit_model(X_train, y_train, X_test, y_test)  # For test data
+                    model, tn, fp, fn, tp, y_pred = fit_model(X_train, y_train, X_test, y_test, model_name)  # For test data
 
                     if prior_sensitivity:
                         beta_prior_list, dirichlet_prior_list = prior_lists()
@@ -449,27 +461,49 @@ if __name__ == '__main__':
                             fig.suptitle(
                                 f'Comparison of F1 Estimates - ({dataset}), n_samples = {n_samples}, IR = {weights}',
                                 fontsize=14)
-                            plt.show()
 
-                            # Plotting joint distributions
-                            # ------------------------------
-                            fig, axs = plt.subplots(1, 2, figsize=(14, 6), sharex=True, sharey=True)
+                            save_file = 'Comparison of F1 Estimates - ' + str(n_samples) + "-" + str(n_features) + "-" + str(weights)
+                            path = "C:/Users/Surani/Documents/PhD Research Work/PhD Work/PostDoc/SBE-F1/R1_HR_Figures/"
+                            plt.savefig(path + save_file + ".png", format="png", dpi=600)
+                            # plt.show()
 
-                            # Plot for Beta approach
+                            import os
+                            import matplotlib.pyplot as plt
+
+                            # --- Plotting joint distributions ---
+                            fig, axs = plt.subplots(1, 2, figsize=(14, 6), sharex=True, sharey=True,
+                                                    constrained_layout=True)
+
+                            # Beta approach
                             axs[0].hexbin(p_samples, r_samples, gridsize=60, cmap='Blues', extent=[0, 1, 0, 1])
                             axs[0].set_title("Beta Posterior (Independent)")
                             axs[0].set_xlabel("Precision")
                             axs[0].set_ylabel("Recall")
 
-                            # Plot for Dirichlet approach
+                            # Dirichlet approach
                             axs[1].hexbin(precision_dir, recall_dir, gridsize=60, cmap='Oranges', extent=[0, 1, 0, 1])
                             axs[1].set_title("Dirichlet Posterior (Joint)")
                             axs[1].set_xlabel("Precision")
                             axs[1].set_ylabel("Recall")
 
-                            plt.suptitle(f"Joint Distribution of Precision and Recall  - ({dataset}), n_samples = {n_samples}, IR = {weights}")
-                            plt.tight_layout()
-                            plt.show()
+                            # Figure title
+                            fig.suptitle(
+                                f"Joint Distribution of Precision and Recall - ({dataset}), n_samples = {n_samples}, IR = {weights}")
+
+                            # --- Save figure ---
+                            # Build a safe filename
+                            weights_str = str(weights).replace(" ", "").replace("[", "").replace("]", "").replace(",",
+                                                                                                                  "-")
+                            save_file = f"Joint-Distribution-{n_samples}-{n_features}-{weights_str}.png"
+
+                            out_dir = r"C:\Users\Surani\Documents\PhD Research Work\PhD Work\PostDoc\SBE-F1\R1_HR_Figures"
+                            os.makedirs(out_dir, exist_ok=True)
+                            out_path = os.path.join(out_dir, save_file)
+
+                            fig.savefig(out_path, format="png", dpi=600, bbox_inches="tight")
+                            plt.close(fig)
+
+                            # plt.show()
 
 
 

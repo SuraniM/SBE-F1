@@ -135,6 +135,8 @@ for classif_name, clf in classifiers.items():
     plt.text(last_x, last_ci_lower - 0.04, f"Lower: {last_ci_lower:.3f}", ha='center', fontsize=9, color='gray')
 
     # Save and show the plot
-    plt.savefig(f"sequential_f1_{classif_name.lower().replace(' ', '_')}.png")
-    plt.show()
+    save_file = "sequential_f1_" + classif_name.lower().replace(' ', '_')
+    path = "C:/Users/Surani/Documents/PhD Research Work/PhD Work/PostDoc/SBE-F1/R1_HR_Figures/"
+    plt.savefig(path + save_file + ".png", format="png", dpi=600)
+    # plt.show()
 
