@@ -289,9 +289,9 @@ if __name__ == '__main__':
     # weights_list = [[0.9, 0.1], [0.8, 0.2], [0.5, 0.5]]
     # n_features_list = [20, 200]
 
-    n_samples_list = [50]
+    n_samples_list = [50, 500]
     weights_list = [[0.8, 0.2]]
-    n_features_list = [20]
+    n_features_list = [20, 200]
     model_name = 'logit'
 
     plot = True
@@ -302,7 +302,7 @@ if __name__ == '__main__':
         for weights in weights_list: # , 0.95, 0.05
             for n_samples in n_samples_list:
                 for n_features in n_features_list:
-                    if n_samples == 50 and n_features == 500:
+                    if n_samples == 50 and n_features == 20:
                         pass
                     n_informative = int(n_features / 2)
                     X_train, X_test, y_train, y_test = generate_data(dataset, weights, n_samples, n_features, n_informative)
